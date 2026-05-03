@@ -87,16 +87,28 @@
               <pre id="plan-preview">Noch keine Vorschau geladen.</pre>
             </section>
 
-        <section class="card">
-          <h3>Benachrichtigungen</h3>
-          <ul id="notifications" class="list"></ul>
-        </section>
-      </div>
+            <section class="card">
+              <h3>Benachrichtigungen</h3>
+              <ul id="notifications" class="list"></ul>
+            </section>
+          </div>
         </div>
 
         <section class="card">
           <h3>Aktive Suchauftraege</h3>
           <ul id="jobs" class="list"></ul>
+        </section>
+
+        <section class="card">
+          <div class="toolbar">
+            <div>
+              <h3>Listing-Snapshots</h3>
+              <p class="muted">Simulierte Treffer bis die echte Kleinanzeigen-Browser-Automation angeschlossen ist.</p>
+            </div>
+            <button id="run-worker-button" class="secondary">Worker jetzt anstossen</button>
+          </div>
+          <p class="status" id="worker-status"></p>
+          <ul id="listings" class="list"></ul>
         </section>
 
         <div class="grid two-up">

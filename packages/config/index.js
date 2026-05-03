@@ -32,6 +32,7 @@ function loadEnv() {
     API_PORT: Number(get("API_PORT", "4000")),
     WORKER_PORT: Number(get("WORKER_PORT", "4010")),
     APP_DATA_DIR: get("APP_DATA_DIR", ""),
+    STORAGE_DRIVER: get("STORAGE_DRIVER", "json"),
     APP_USERNAME: get("APP_USERNAME", "admin"),
     APP_PASSWORD: get("APP_PASSWORD", "change-me"),
     APP_PASSWORD_HASH: get("APP_PASSWORD_HASH", ""),
@@ -137,6 +138,7 @@ function ensureAppFiles() {
   const settingsFile = path.join(dataDir, "settings.json");
   const jobsFile = path.join(dataDir, "search-jobs.json");
   const stateFile = path.join(dataDir, "search-state.json");
+  const listingsFile = path.join(dataDir, "listings.json");
 
   if (!fs.existsSync(userFile)) {
     writeJsonFile(userFile, {
@@ -181,8 +183,9 @@ function ensureAppFiles() {
       pendingIntegration: true,
     },
   });
+  readJsonFile(listingsFile, []);
 
-  return { dataDir, userFile, settingsFile, jobsFile, stateFile };
+  return { dataDir, userFile, settingsFile, jobsFile, stateFile, listingsFile };
 }
 
 module.exports = {

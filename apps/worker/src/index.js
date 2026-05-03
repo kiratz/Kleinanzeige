@@ -1,53 +1,19 @@
-const path = require("node:path");
 const {
   loadEnv,
-  ensureAppFiles,
-  readJsonFile,
-  writeJsonFile,
 } = require("../../../packages/config/index.js");
+const { getStorage } = require("../../../packages/core/storage.js");
+const { simulateListingsForJob, computeFakeMarketScore } = require("../../../packages/core/crawler.js");
 
 const env = loadEnv();
-const { jobsFile, stateFile, settingsFile } = ensureAppFiles();
-
-function computeDealScore(job) {
-  let score = 20;
-  const text = String(job.freeText ?? "").toLowerCase();
-  if (job.maxPrice && job.maxPrice <= 1000) score += 20;
-  if (text.includes("rtx") || text.includes("gaming")) score += 15;
-  if (text.includes("leise") || text.includes("silent")) score += 10;
-  if ((job.aiSearchPlan?.keywords ?? []).length >= 6) score += 15;
-  if (job.radiusKm <= 50) score += 10;
-  return Math.min(score, 95);
-}
+const storage = getStorage();
 
 function runLoop() {
-  const jobs = readJsonFile(jobsFile, []);
-  const settings = readJsonFile(settingsFile, {
-    notifications: {
-      telegramEnabled: false,
-      telegramBotToken: "",
-      telegramChatId: "",
-      whatsappEnabled: false,
-      whatsappAccessToken: "",
-      whatsappPhoneNumberId: "",
-      whatsappTargetNumber: "",
-    },
-    search: {
-      defaultIntervalMinutes: 10,
-      defaultRadiusKm: 25,
-      dealScoreThreshold: 80,
-    },
-  });
-  const state = readJsonFile(stateFile, {
-    notifications: [],
-    snoozedSearchJobs: {},
-    worker: {
-      lastRunAt: null,
-      lastSummary: "Noch kein Lauf",
-      pendingIntegration: true,
-    },
-  });
+  const jobs = storage.listJobs();
+  const settings = storage.getSettings();
+  const state = storage.listState();
+  const listings = storage.listListings();
   const now = new Date();
+  const forceRun = Boolean(state.worker?.runNowRequested);
   let changed = false;
   let checkedJobs = 0;
   let scoredDeals = 0;
@@ -57,7 +23,7 @@ function runLoop() {
       continue;
     }
 
-    if (job.snoozedUntil && new Date(job.snoozedUntil) > now) {
+    if (!forceRun && job.snoozedUntil && new Date(job.snoozedUntil) > now) {
       continue;
     }
 
@@ -65,7 +31,7 @@ function runLoop() {
       ? (now.getTime() - new Date(job.lastCheckedAt).getTime()) / 60000
       : Infinity;
 
-    if (minutesSinceLastCheck < Number(job.intervalMinutes ?? 10)) {
+    if (!forceRun && minutesSinceLastCheck < Number(job.intervalMinutes ?? 10)) {
       continue;
     }
 
@@ -73,7 +39,19 @@ function runLoop() {
     changed = true;
     checkedJobs += 1;
 
-    const dealScore = computeDealScore(job);
+    const newListings = simulateListingsForJob(job).filter(
+      (candidate) =>
+        !listings.some(
+          (existing) =>
+            existing.searchJobId === candidate.searchJobId && existing.externalId === candidate.externalId,
+        ),
+    );
+
+    for (const listing of newListings) {
+      listings.push(listing);
+    }
+
+    const dealScore = computeFakeMarketScore(job);
     const threshold = Number(settings.search?.dealScoreThreshold ?? 80);
     if (dealScore >= threshold) {
       scoredDeals += 1;
@@ -101,12 +79,16 @@ function runLoop() {
     lastRunAt: now.toISOString(),
     lastSummary: `Checked ${checkedJobs} jobs, ${scoredDeals} score hits, crawler integration pending`,
     pendingIntegration: true,
+    requestedAt: state.worker?.requestedAt ?? null,
+    requestedBy: state.worker?.requestedBy ?? null,
+    runNowRequested: false,
   };
   changed = true;
 
   if (changed) {
-    writeJsonFile(jobsFile, jobs);
-    writeJsonFile(stateFile, state);
+    storage.saveJobs(jobs);
+    storage.saveState(state);
+    storage.saveListings(listings);
   }
 
   console.log(`[worker] ${state.worker.lastSummary}`);

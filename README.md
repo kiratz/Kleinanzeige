@@ -106,3 +106,4 @@ Beim ersten Start wird daraus automatisch ein gehashter Benutzer in den lokalen 
 - [Architektur](./docs/ARCHITECTURE.md)
 - [Roadmap](./docs/ROADMAP.md)
 - [Datenmodell](./docs/DATA_MODEL.md)
+- [Crawler-Strategie](./docs/CRAWLER_STRATEGY.md)

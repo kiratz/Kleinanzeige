@@ -2,17 +2,18 @@ const http = require("node:http");
 const { randomUUID, createHash } = require("node:crypto");
 const {
   loadEnv,
-  readJsonFile,
-  writeJsonFile,
   buildSearchPlanFromInput,
   rootDir,
   hashPassword,
   verifyPassword,
-  ensureAppFiles,
+  ensureDataDir,
 } = require("../../../packages/config/index.js");
+const { getStorage } = require("../../../packages/core/storage.js");
+const { buildKleinanzeigenSearchUrl } = require("../../../packages/core/crawler.js");
 
 const env = loadEnv();
-const { dataDir, userFile, settingsFile, jobsFile, stateFile } = ensureAppFiles();
+const storage = getStorage();
+const dataDir = ensureDataDir();
 const sessions = new Map();
 
 function sendJson(response, statusCode, payload) {
@@ -121,66 +122,43 @@ function withCors(response) {
 }
 
 function listJobs() {
-  return readJsonFile(jobsFile, []);
+  return storage.listJobs();
 }
 
 function saveJobs(jobs) {
-  writeJsonFile(jobsFile, jobs);
+  storage.saveJobs(jobs);
 }
 
 function listState() {
-  return readJsonFile(stateFile, {
-    notifications: [],
-    snoozedSearchJobs: {},
-    worker: {
-      lastRunAt: null,
-      lastSummary: "Noch kein Lauf",
-      pendingIntegration: true,
-    },
-  });
+  return storage.listState();
 }
 
 function saveState(state) {
-  writeJsonFile(stateFile, state);
+  storage.saveState(state);
 }
 
 function getUser() {
-  return readJsonFile(userFile, null);
+  return storage.getUser();
 }
 
 function saveUser(user) {
-  writeJsonFile(userFile, user);
+  storage.saveUser(user);
 }
 
 function getSettings() {
-  return readJsonFile(settingsFile, {
-    notifications: {
-      telegramEnabled: false,
-      telegramBotToken: "",
-      telegramChatId: "",
-      whatsappEnabled: false,
-      whatsappAccessToken: "",
-      whatsappPhoneNumberId: "",
-      whatsappTargetNumber: "",
-    },
-    search: {
-      defaultIntervalMinutes: 10,
-      defaultRadiusKm: 25,
-      dealScoreThreshold: 80,
-    },
-    crawler: {
-      mode: "manual-placeholder",
-      note: "Kleinanzeigen-Integration folgt spaeter per Browser-Automation.",
-    },
-    updatedAt: new Date().toISOString(),
-  });
+  return storage.getSettings();
 }
 
 function saveSettings(settings) {
-  writeJsonFile(settingsFile, {
-    ...settings,
-    updatedAt: new Date().toISOString(),
-  });
+  storage.saveSettings(settings);
+}
+
+function listListings() {
+  return storage.listListings();
+}
+
+function saveListings(listings) {
+  storage.saveListings(listings);
 }
 
 function normalizeSearchJob(input) {
@@ -212,6 +190,15 @@ function normalizeSearchJob(input) {
     intervalMinutes,
     status,
     aiSearchPlan: searchPlan,
+    sourcePlan: {
+      provider: "kleinanzeigen",
+      searchUrl: buildKleinanzeigenSearchUrl({
+        title: title || freeText,
+        aiSearchPlan: searchPlan,
+        radiusKm,
+        maxPrice,
+      }),
+    },
   };
 }
 
@@ -322,8 +309,43 @@ const server = http.createServer(async (request, response) => {
       user: session,
       summary: summarizeSearchState(jobs, state),
       settings: getSettings(),
+      listingSummary: {
+        total: listListings().length,
+      },
       recentNotifications: state.notifications.slice(-10).reverse(),
     });
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/listings") {
+    const session = requireAuth(request, response);
+    if (!session) {
+      return;
+    }
+
+    const searchJobId = url.searchParams.get("searchJobId");
+    const items = listListings()
+      .filter((listing) => !searchJobId || listing.searchJobId === searchJobId)
+      .sort((left, right) => right.discoveredAt.localeCompare(left.discoveredAt));
+    sendJson(response, 200, { items });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/worker/run-now") {
+    const session = requireAuth(request, response);
+    if (!session) {
+      return;
+    }
+
+    const state = listState();
+    state.worker = {
+      ...(state.worker ?? {}),
+      requestedAt: new Date().toISOString(),
+      requestedBy: session.username,
+      runNowRequested: true,
+    };
+    saveState(state);
+    sendJson(response, 202, { ok: true, worker: state.worker });
     return;
   }
 

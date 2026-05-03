@@ -12,11 +12,14 @@ const elements = {
   planPreview: document.getElementById("plan-preview"),
   jobs: document.getElementById("jobs"),
   notifications: document.getElementById("notifications"),
+  listings: document.getElementById("listings"),
   summary: document.getElementById("summary"),
   settingsForm: document.getElementById("settings-form"),
   settingsStatus: document.getElementById("settings-status"),
   passwordForm: document.getElementById("password-form"),
   passwordStatus: document.getElementById("password-status"),
+  runWorkerButton: document.getElementById("run-worker-button"),
+  workerStatus: document.getElementById("worker-status"),
 };
 
 async function api(path, options = {}) {
@@ -88,6 +91,27 @@ function renderNotifications(items) {
     .join("");
 }
 
+function renderListings(items) {
+  if (!items.length) {
+    elements.listings.innerHTML = "<li>Noch keine Listing-Snapshots vorhanden.</li>";
+    return;
+  }
+
+  elements.listings.innerHTML = items
+    .map(
+      (item) => `
+        <li>
+          <strong>${item.title}</strong><br>
+          Quelle: ${item.source} | Preis: ${item.price ?? "-"} EUR | Score: ${item.dealScore ?? "-"}<br>
+          Status: ${item.verdict}<br>
+          <a href="${item.listingUrl}" target="_blank" rel="noreferrer">Suche oeffnen</a><br>
+          ${item.summary}
+        </li>
+      `,
+    )
+    .join("");
+}
+
 function fillSettings(settings) {
   const notifications = settings.notifications ?? {};
   const search = settings.search ?? {};
@@ -102,9 +126,11 @@ function fillSettings(settings) {
 async function loadDashboard() {
   const dashboard = await api("/api/dashboard");
   const jobs = await api("/api/search-jobs");
+  const listings = await api("/api/listings");
   elements.summary.textContent = `Aktiv: ${dashboard.summary.activeJobs}, Snoozed: ${dashboard.summary.snoozedJobs}, Worker: ${dashboard.summary.worker?.lastSummary ?? "n/a"}`;
   renderJobs(jobs.items);
   renderNotifications(dashboard.recentNotifications);
+  renderListings(listings.items);
   fillSettings(dashboard.settings);
 }
 
@@ -213,6 +239,17 @@ elements.passwordForm.addEventListener("submit", async (event) => {
     elements.passwordStatus.textContent = "Passwort aktualisiert.";
   } catch (error) {
     elements.passwordStatus.textContent = error.message;
+  }
+});
+
+elements.runWorkerButton.addEventListener("click", async () => {
+  elements.workerStatus.textContent = "";
+  try {
+    const result = await api("/api/worker/run-now", { method: "POST" });
+    elements.workerStatus.textContent = `Worker angefordert: ${result.worker.requestedAt}`;
+    await loadDashboard();
+  } catch (error) {
+    elements.workerStatus.textContent = error.message;
   }
 });
 
