@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kleinanzeige</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">Kleinanzeigen KI Monitor</p>
+        <h1>Deals beobachten, bewerten und nur bei echten Schnaeppchen alarmieren.</h1>
+        <p class="lede">
+          Dieses V1-Grundsystem verwaltet Login, Suchauftraege, KI-Suchplaene und den Worker-Loop zentral.
+        </p>
+      </section>
+
+      <section class="panel" id="login-panel">
+        <h2>Login</h2>
+        <form id="login-form" class="stack">
+          <label>
+            Benutzername
+            <input name="username" autocomplete="username" required>
+          </label>
+          <label>
+            Passwort
+            <input name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <button type="submit">Anmelden</button>
+        </form>
+        <p class="status" id="login-status"></p>
+      </section>
+
+      <section class="panel hidden" id="app-panel">
+        <div class="toolbar">
+          <div>
+            <h2>Suchauftraege</h2>
+            <p class="muted" id="summary"></p>
+          </div>
+          <button id="logout-button" class="secondary">Abmelden</button>
+        </div>
+
+        <div class="grid">
+          <form id="job-form" class="stack card">
+            <h3>Neuer Suchauftrag</h3>
+            <label>
+              Titel
+              <input name="title" placeholder="Gaming-PC unter 900 EUR">
+            </label>
+            <label>
+              Freitext
+              <textarea name="freeText" rows="6" placeholder="Leiser Gaming-PC mit RTX 4070, mindestens 32 GB RAM, maximal 900 Euro, Raum Muenchen."></textarea>
+            </label>
+            <label>
+              Kategorie
+              <input name="category" placeholder="PC / Desktop">
+            </label>
+            <div class="inline-fields">
+              <label>
+                Radius km
+                <input name="radiusKm" type="number" value="25" min="1">
+              </label>
+              <label>
+                Min EUR
+                <input name="minPrice" type="number" min="0">
+              </label>
+              <label>
+                Max EUR
+                <input name="maxPrice" type="number" min="0">
+              </label>
+              <label>
+                Intervall Min
+                <input name="intervalMinutes" type="number" value="10" min="1">
+              </label>
+            </div>
+            <div class="actions">
+              <button type="button" id="preview-plan-button" class="secondary">KI-Plan ansehen</button>
+              <button type="submit">Suchauftrag speichern</button>
+            </div>
+            <p class="status" id="job-status"></p>
+          </form>
+
+          <div class="stack">
+            <section class="card">
+              <h3>KI-Suchplan Vorschau</h3>
+              <pre id="plan-preview">Noch keine Vorschau geladen.</pre>
+            </section>
+
+            <section class="card">
+              <h3>Benachrichtigungen</h3>
+              <ul id="notifications" class="list"></ul>
+            </section>
+          </div>
+        </div>
+
+        <section class="card">
+          <h3>Aktive Suchauftraege</h3>
+          <ul id="jobs" class="list"></ul>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -52,14 +52,42 @@ docs/        Produkt- und Architektur-Dokumentation
 
 ## Lokaler Start
 
-Die Implementierung ist in diesem Commit bewusst als Grundgeruest angelegt.
-Naechste Schritte:
+1. `.env` anlegen
 
-1. Dependencies installieren
-2. API-Basis aufsetzen
-3. Web-App bootstrappen
-4. DB-Schema definieren
-5. Worker fuer Polling und Alerts implementieren
+```bash
+cp .env.example .env
+```
+
+2. API starten
+
+```bash
+npm run dev:api
+```
+
+3. Web starten
+
+```bash
+npm run dev:web
+```
+
+4. Optional Worker starten
+
+```bash
+npm run dev:worker
+```
+
+Danach:
+
+- Web: `http://localhost:3000`
+- API Health: `http://localhost:4000/health`
+- Laufzeitdaten standardmaessig unter:
+  - ueber `APP_DATA_DIR`, falls gesetzt
+  - sonst im Temp-Verzeichnis des Systems, z. B. `.../Temp/kleinanzeige`
+
+Standard-Login aus `.env.example`:
+
+- Benutzer: `admin`
+- Passwort: `change-me`
 
 ## Dokumentation
 
