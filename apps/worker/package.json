@@ -1,0 +1,10 @@
+{
+  "name": "@kleinanzeige/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ./src/index.js",
+    "build": "echo worker build placeholder",
+    "lint": "echo worker lint placeholder"
+  }
+}

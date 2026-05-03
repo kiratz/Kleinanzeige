@@ -1,0 +1,10 @@
+{
+  "name": "@kleinanzeige/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ./src/index.js",
+    "build": "echo web build placeholder",
+    "lint": "echo web lint placeholder"
+  }
+}
