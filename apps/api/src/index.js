@@ -1,24 +1,19 @@
 const http = require("node:http");
 const { randomUUID, createHash } = require("node:crypto");
-const fs = require("node:fs");
-const path = require("node:path");
 const {
   loadEnv,
-  ensureDataDir,
   readJsonFile,
   writeJsonFile,
   buildSearchPlanFromInput,
   rootDir,
+  hashPassword,
+  verifyPassword,
+  ensureAppFiles,
 } = require("../../../packages/config/index.js");
 
 const env = loadEnv();
-const dataDir = ensureDataDir();
-const jobsFile = path.join(dataDir, "search-jobs.json");
-const stateFile = path.join(dataDir, "search-state.json");
+const { dataDir, userFile, settingsFile, jobsFile, stateFile } = ensureAppFiles();
 const sessions = new Map();
-
-readJsonFile(jobsFile, []);
-readJsonFile(stateFile, { notifications: [], snoozedSearchJobs: {} });
 
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
@@ -134,21 +129,69 @@ function saveJobs(jobs) {
 }
 
 function listState() {
-  return readJsonFile(stateFile, { notifications: [], snoozedSearchJobs: {} });
+  return readJsonFile(stateFile, {
+    notifications: [],
+    snoozedSearchJobs: {},
+    worker: {
+      lastRunAt: null,
+      lastSummary: "Noch kein Lauf",
+      pendingIntegration: true,
+    },
+  });
 }
 
 function saveState(state) {
   writeJsonFile(stateFile, state);
 }
 
+function getUser() {
+  return readJsonFile(userFile, null);
+}
+
+function saveUser(user) {
+  writeJsonFile(userFile, user);
+}
+
+function getSettings() {
+  return readJsonFile(settingsFile, {
+    notifications: {
+      telegramEnabled: false,
+      telegramBotToken: "",
+      telegramChatId: "",
+      whatsappEnabled: false,
+      whatsappAccessToken: "",
+      whatsappPhoneNumberId: "",
+      whatsappTargetNumber: "",
+    },
+    search: {
+      defaultIntervalMinutes: 10,
+      defaultRadiusKm: 25,
+      dealScoreThreshold: 80,
+    },
+    crawler: {
+      mode: "manual-placeholder",
+      note: "Kleinanzeigen-Integration folgt spaeter per Browser-Automation.",
+    },
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function saveSettings(settings) {
+  writeJsonFile(settingsFile, {
+    ...settings,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 function normalizeSearchJob(input) {
+  const settings = getSettings();
   const freeText = String(input.freeText ?? "").trim();
   const title = String(input.title ?? "").trim();
   const category = String(input.category ?? "").trim();
-  const radiusKm = Number(input.radiusKm ?? 25);
+  const radiusKm = Number(input.radiusKm ?? settings.search.defaultRadiusKm ?? 25);
   const maxPrice = input.maxPrice === "" || input.maxPrice == null ? null : Number(input.maxPrice);
   const minPrice = input.minPrice === "" || input.minPrice == null ? null : Number(input.minPrice);
-  const intervalMinutes = Number(input.intervalMinutes ?? 10);
+  const intervalMinutes = Number(input.intervalMinutes ?? settings.search.defaultIntervalMinutes ?? 10);
   const status = String(input.status ?? "active");
 
   const searchPlan = buildSearchPlanFromInput({
@@ -194,6 +237,7 @@ function summarizeSearchState(jobs, state) {
     activeJobs,
     snoozedJobs,
     notificationsSent: state.notifications.length,
+    worker: state.worker ?? null,
   };
 }
 
@@ -214,9 +258,7 @@ const server = http.createServer(async (request, response) => {
       application: "kleinanzeige-api",
       status: "ok",
       timestampUtc: new Date().toISOString(),
-      auth: {
-        username: env.APP_USERNAME,
-      },
+      auth: { configured: Boolean(getUser()?.username) },
       system: summarizeSearchState(jobs, state),
     });
     return;
@@ -225,7 +267,12 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "POST" && url.pathname === "/api/auth/login") {
     try {
       const body = await readBody(request);
-      if (body.username !== env.APP_USERNAME || body.password !== env.APP_PASSWORD) {
+      const user = getUser();
+      const valid =
+        body.username === user.username &&
+        verifyPassword(String(body.password ?? ""), user.passwordHash);
+
+      if (!valid) {
         sendJson(response, 401, { error: "Invalid username or password" });
         return;
       }
@@ -274,8 +321,85 @@ const server = http.createServer(async (request, response) => {
     sendJson(response, 200, {
       user: session,
       summary: summarizeSearchState(jobs, state),
+      settings: getSettings(),
       recentNotifications: state.notifications.slice(-10).reverse(),
     });
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/settings") {
+    const session = requireAuth(request, response);
+    if (!session) {
+      return;
+    }
+
+    sendJson(response, 200, getSettings());
+    return;
+  }
+
+  if (request.method === "PUT" && url.pathname === "/api/settings") {
+    const session = requireAuth(request, response);
+    if (!session) {
+      return;
+    }
+
+    try {
+      const body = await readBody(request);
+      const current = getSettings();
+      const nextSettings = {
+        notifications: {
+          ...current.notifications,
+          ...body.notifications,
+        },
+        search: {
+          ...current.search,
+          ...body.search,
+        },
+        crawler: {
+          ...current.crawler,
+          ...body.crawler,
+        },
+      };
+      saveSettings(nextSettings);
+      sendJson(response, 200, nextSettings);
+    } catch (error) {
+      sendJson(response, 400, { error: "Invalid request body" });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/account/password") {
+    const session = requireAuth(request, response);
+    if (!session) {
+      return;
+    }
+
+    try {
+      const body = await readBody(request);
+      const user = getUser();
+      const currentPassword = String(body.currentPassword ?? "");
+      const nextPassword = String(body.newPassword ?? "");
+
+      if (!verifyPassword(currentPassword, user.passwordHash)) {
+        sendJson(response, 400, { error: "Current password is incorrect" });
+        return;
+      }
+
+      if (nextPassword.length < 8) {
+        sendJson(response, 400, { error: "New password must be at least 8 characters" });
+        return;
+      }
+
+      saveUser({
+        ...user,
+        passwordHash: hashPassword(nextPassword),
+        updatedAt: new Date().toISOString(),
+      });
+
+      sendJson(response, 200, { ok: true });
+    } catch (error) {
+      sendJson(response, 400, { error: "Invalid request body" });
+    }
     return;
   }
 

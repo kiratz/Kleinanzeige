@@ -1,4 +1,5 @@
 const fs = require("node:fs");
+const { randomBytes, scryptSync, timingSafeEqual } = require("node:crypto");
 const os = require("node:os");
 const path = require("node:path");
 
@@ -33,8 +34,13 @@ function loadEnv() {
     APP_DATA_DIR: get("APP_DATA_DIR", ""),
     APP_USERNAME: get("APP_USERNAME", "admin"),
     APP_PASSWORD: get("APP_PASSWORD", "change-me"),
+    APP_PASSWORD_HASH: get("APP_PASSWORD_HASH", ""),
     SESSION_SECRET: get("SESSION_SECRET", "change-me-too"),
     TELEGRAM_BOT_TOKEN: get("TELEGRAM_BOT_TOKEN", ""),
+    TELEGRAM_CHAT_ID: get("TELEGRAM_CHAT_ID", ""),
+    WHATSAPP_ACCESS_TOKEN: get("WHATSAPP_ACCESS_TOKEN", ""),
+    WHATSAPP_PHONE_NUMBER_ID: get("WHATSAPP_PHONE_NUMBER_ID", ""),
+    WHATSAPP_TARGET_NUMBER: get("WHATSAPP_TARGET_NUMBER", ""),
   };
 }
 
@@ -107,6 +113,78 @@ function buildSearchPlanFromInput(input) {
   };
 }
 
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const derivedKey = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${derivedKey}`;
+}
+
+function verifyPassword(password, storedHash) {
+  const [salt, expectedKey] = String(storedHash || "").split(":");
+  if (!salt || !expectedKey) {
+    return false;
+  }
+
+  const actualKey = scryptSync(password, salt, 64);
+  const expectedBuffer = Buffer.from(expectedKey, "hex");
+  return expectedBuffer.length === actualKey.length && timingSafeEqual(actualKey, expectedBuffer);
+}
+
+function ensureAppFiles() {
+  const env = loadEnv();
+  const dataDir = ensureDataDir();
+  const userFile = path.join(dataDir, "user.json");
+  const settingsFile = path.join(dataDir, "settings.json");
+  const jobsFile = path.join(dataDir, "search-jobs.json");
+  const stateFile = path.join(dataDir, "search-state.json");
+
+  if (!fs.existsSync(userFile)) {
+    writeJsonFile(userFile, {
+      username: env.APP_USERNAME,
+      passwordHash: env.APP_PASSWORD_HASH || hashPassword(env.APP_PASSWORD),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  if (!fs.existsSync(settingsFile)) {
+    writeJsonFile(settingsFile, {
+      notifications: {
+        telegramEnabled: Boolean(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID),
+        telegramBotToken: env.TELEGRAM_BOT_TOKEN,
+        telegramChatId: env.TELEGRAM_CHAT_ID,
+        whatsappEnabled: Boolean(env.WHATSAPP_ACCESS_TOKEN && env.WHATSAPP_TARGET_NUMBER),
+        whatsappAccessToken: env.WHATSAPP_ACCESS_TOKEN,
+        whatsappPhoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
+        whatsappTargetNumber: env.WHATSAPP_TARGET_NUMBER,
+      },
+      search: {
+        defaultIntervalMinutes: 10,
+        defaultRadiusKm: 25,
+        dealScoreThreshold: 80,
+      },
+      crawler: {
+        mode: "manual-placeholder",
+        note: "Kleinanzeigen-Integration folgt spaeter per Browser-Automation.",
+      },
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  readJsonFile(jobsFile, []);
+  readJsonFile(stateFile, {
+    notifications: [],
+    snoozedSearchJobs: {},
+    worker: {
+      lastRunAt: null,
+      lastSummary: "Noch kein Lauf",
+      pendingIntegration: true,
+    },
+  });
+
+  return { dataDir, userFile, settingsFile, jobsFile, stateFile };
+}
+
 module.exports = {
   rootDir,
   loadEnv,
@@ -114,4 +192,7 @@ module.exports = {
   readJsonFile,
   writeJsonFile,
   buildSearchPlanFromInput,
+  hashPassword,
+  verifyPassword,
+  ensureAppFiles,
 };

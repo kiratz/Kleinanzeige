@@ -13,6 +13,10 @@ const elements = {
   jobs: document.getElementById("jobs"),
   notifications: document.getElementById("notifications"),
   summary: document.getElementById("summary"),
+  settingsForm: document.getElementById("settings-form"),
+  settingsStatus: document.getElementById("settings-status"),
+  passwordForm: document.getElementById("password-form"),
+  passwordStatus: document.getElementById("password-status"),
 };
 
 async function api(path, options = {}) {
@@ -77,19 +81,31 @@ function renderNotifications(items) {
         <li>
           <strong>${item.title}</strong><br>
           ${item.message}<br>
-          Kanal: ${item.channel} | ${item.createdAt}
+          Kanal: ${item.channel} | Score: ${item.score ?? "-"} | ${item.createdAt}
         </li>
       `,
     )
     .join("");
 }
 
+function fillSettings(settings) {
+  const notifications = settings.notifications ?? {};
+  const search = settings.search ?? {};
+  elements.settingsForm.telegramBotToken.value = notifications.telegramBotToken ?? "";
+  elements.settingsForm.telegramChatId.value = notifications.telegramChatId ?? "";
+  elements.settingsForm.whatsappTargetNumber.value = notifications.whatsappTargetNumber ?? "";
+  elements.settingsForm.defaultIntervalMinutes.value = search.defaultIntervalMinutes ?? 10;
+  elements.settingsForm.defaultRadiusKm.value = search.defaultRadiusKm ?? 25;
+  elements.settingsForm.dealScoreThreshold.value = search.dealScoreThreshold ?? 80;
+}
+
 async function loadDashboard() {
   const dashboard = await api("/api/dashboard");
   const jobs = await api("/api/search-jobs");
-  elements.summary.textContent = `Aktiv: ${dashboard.summary.activeJobs}, Snoozed: ${dashboard.summary.snoozedJobs}, Daten: ${dashboard.summary.dataDir}`;
+  elements.summary.textContent = `Aktiv: ${dashboard.summary.activeJobs}, Snoozed: ${dashboard.summary.snoozedJobs}, Worker: ${dashboard.summary.worker?.lastSummary ?? "n/a"}`;
   renderJobs(jobs.items);
   renderNotifications(dashboard.recentNotifications);
+  fillSettings(dashboard.settings);
 }
 
 async function checkSession() {
@@ -152,6 +168,51 @@ elements.jobForm.addEventListener("submit", async (event) => {
     await loadDashboard();
   } catch (error) {
     elements.jobStatus.textContent = error.message;
+  }
+});
+
+elements.settingsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  elements.settingsStatus.textContent = "";
+  try {
+    await api("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        notifications: {
+          telegramBotToken: elements.settingsForm.telegramBotToken.value.trim(),
+          telegramChatId: elements.settingsForm.telegramChatId.value.trim(),
+          telegramEnabled:
+            Boolean(elements.settingsForm.telegramBotToken.value.trim()) &&
+            Boolean(elements.settingsForm.telegramChatId.value.trim()),
+          whatsappTargetNumber: elements.settingsForm.whatsappTargetNumber.value.trim(),
+          whatsappEnabled: Boolean(elements.settingsForm.whatsappTargetNumber.value.trim()),
+        },
+        search: {
+          defaultIntervalMinutes: Number(elements.settingsForm.defaultIntervalMinutes.value || 10),
+          defaultRadiusKm: Number(elements.settingsForm.defaultRadiusKm.value || 25),
+          dealScoreThreshold: Number(elements.settingsForm.dealScoreThreshold.value || 80),
+        },
+      }),
+    });
+    elements.settingsStatus.textContent = "Einstellungen gespeichert.";
+    await loadDashboard();
+  } catch (error) {
+    elements.settingsStatus.textContent = error.message;
+  }
+});
+
+elements.passwordForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  elements.passwordStatus.textContent = "";
+  try {
+    await api("/api/account/password", {
+      method: "POST",
+      body: JSON.stringify(readForm(elements.passwordForm)),
+    });
+    elements.passwordForm.reset();
+    elements.passwordStatus.textContent = "Passwort aktualisiert.";
+  } catch (error) {
+    elements.passwordStatus.textContent = error.message;
   }
 });
 

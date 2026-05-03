@@ -89,8 +89,20 @@ Standard-Login aus `.env.example`:
 - Benutzer: `admin`
 - Passwort: `change-me`
 
+Beim ersten Start wird daraus automatisch ein gehashter Benutzer in den lokalen Laufzeitdaten erzeugt.
+
+## Aktueller Stand
+
+- Login mit Passwort-Hashing
+- Passwortwechsel im UI
+- Suchauftraege mit KI-Suchplan-Vorschau
+- Worker-Status und einfache Deal-Score-Heuristik
+- Einstellungen fuer Telegram/WhatsApp im UI
+- PostgreSQL-Schema fuer spaetere Produktionsumstellung
+
 ## Dokumentation
 
 - [Produktanforderungen](./docs/PRODUCT_REQUIREMENTS.md)
 - [Architektur](./docs/ARCHITECTURE.md)
 - [Roadmap](./docs/ROADMAP.md)
+- [Datenmodell](./docs/DATA_MODEL.md)
