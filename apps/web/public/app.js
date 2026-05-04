@@ -1,8 +1,15 @@
-const apiBaseUrl = "http://localhost:4000";
+const apiBaseUrl =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? `${window.location.protocol}//${window.location.hostname}:4000`
+    : "";
 
 const elements = {
   loginPanel: document.getElementById("login-panel"),
   appPanel: document.getElementById("app-panel"),
+  metricActive: document.getElementById("metric-active"),
+  metricSnoozed: document.getElementById("metric-snoozed"),
+  metricNotifications: document.getElementById("metric-notifications"),
+  metricWorker: document.getElementById("metric-worker"),
   loginForm: document.getElementById("login-form"),
   loginStatus: document.getElementById("login-status"),
   logoutButton: document.getElementById("logout-button"),
@@ -123,11 +130,20 @@ function fillSettings(settings) {
   elements.settingsForm.dealScoreThreshold.value = search.dealScoreThreshold ?? 80;
 }
 
+function renderSummary(dashboard) {
+  const summary = dashboard.summary;
+  elements.metricActive.textContent = String(summary.activeJobs ?? 0);
+  elements.metricSnoozed.textContent = String(summary.snoozedJobs ?? 0);
+  elements.metricNotifications.textContent = String(summary.notificationsSent ?? 0);
+  elements.metricWorker.textContent = summary.worker?.lastSummary ?? "Noch kein Lauf";
+  elements.summary.textContent = `Datenpfad: ${summary.dataDir} | Root: ${summary.rootDir}`;
+}
+
 async function loadDashboard() {
   const dashboard = await api("/api/dashboard");
   const jobs = await api("/api/search-jobs");
   const listings = await api("/api/listings");
-  elements.summary.textContent = `Aktiv: ${dashboard.summary.activeJobs}, Snoozed: ${dashboard.summary.snoozedJobs}, Worker: ${dashboard.summary.worker?.lastSummary ?? "n/a"}`;
+  renderSummary(dashboard);
   renderJobs(jobs.items);
   renderNotifications(dashboard.recentNotifications);
   renderListings(listings.items);

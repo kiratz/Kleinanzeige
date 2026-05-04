@@ -58,21 +58,17 @@ docs/        Produkt- und Architektur-Dokumentation
 cp .env.example .env
 ```
 
-2. API starten
+2. Gesamten Stack starten
+
+```bash
+npm run dev
+```
+
+Alternativ einzeln:
 
 ```bash
 npm run dev:api
-```
-
-3. Web starten
-
-```bash
 npm run dev:web
-```
-
-4. Optional Worker starten
-
-```bash
 npm run dev:worker
 ```
 
@@ -80,6 +76,7 @@ Danach:
 
 - Web: `http://localhost:3000`
 - API Health: `http://localhost:4000/health`
+- Die Web-App verwendet automatisch den aktuellen Hostnamen fuer API-Requests und ist damit nicht mehr auf `localhost` im Browser fest verdrahtet.
 - Laufzeitdaten standardmaessig unter:
   - ueber `APP_DATA_DIR`, falls gesetzt
   - sonst im Temp-Verzeichnis des Systems, z. B. `.../Temp/kleinanzeige`

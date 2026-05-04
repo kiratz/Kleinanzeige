@@ -31,6 +31,7 @@ function loadEnv() {
     APP_PORT: Number(get("APP_PORT", "3000")),
     API_PORT: Number(get("API_PORT", "4000")),
     WORKER_PORT: Number(get("WORKER_PORT", "4010")),
+    APP_ORIGIN: get("APP_ORIGIN", ""),
     APP_DATA_DIR: get("APP_DATA_DIR", ""),
     STORAGE_DRIVER: get("STORAGE_DRIVER", "json"),
     APP_USERNAME: get("APP_USERNAME", "admin"),
@@ -48,7 +49,9 @@ function loadEnv() {
 function ensureDataDir() {
   const env = loadEnv();
   const dataDir = env.APP_DATA_DIR
-    ? path.resolve(env.APP_DATA_DIR)
+    ? path.isAbsolute(env.APP_DATA_DIR)
+      ? env.APP_DATA_DIR
+      : path.resolve(rootDir, env.APP_DATA_DIR)
     : path.join(process.env.TEMP || os.tmpdir(), "kleinanzeige");
   fs.mkdirSync(dataDir, { recursive: true });
   return dataDir;

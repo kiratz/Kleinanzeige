@@ -114,8 +114,11 @@ function requireAuth(request, response) {
   return session;
 }
 
-function withCors(response) {
-  response.setHeader("Access-Control-Allow-Origin", `http://localhost:${env.APP_PORT}`);
+function withCors(request, response) {
+  const requestOrigin = request.headers.origin;
+  const fallbackOrigin = `http://localhost:${env.APP_PORT}`;
+  const allowedOrigin = env.APP_ORIGIN || requestOrigin || fallbackOrigin;
+  response.setHeader("Access-Control-Allow-Origin", allowedOrigin);
   response.setHeader("Access-Control-Allow-Credentials", "true");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
@@ -229,7 +232,7 @@ function summarizeSearchState(jobs, state) {
 }
 
 const server = http.createServer(async (request, response) => {
-  withCors(response);
+  withCors(request, response);
 
   if (request.method === "OPTIONS") {
     sendNoContent(response);

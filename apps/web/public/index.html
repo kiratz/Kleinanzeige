@@ -4,16 +4,45 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kleinanzeige</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
+    <div class="ambient ambient-a"></div>
+    <div class="ambient ambient-b"></div>
     <main class="page">
       <section class="hero">
-        <p class="eyebrow">Kleinanzeigen KI Monitor</p>
-        <h1>Deals beobachten, bewerten und nur bei echten Schnaeppchen alarmieren.</h1>
-        <p class="lede">
-          Dieses V1-Grundsystem verwaltet Login, Suchauftraege, KI-Suchplaene und den Worker-Loop zentral.
-        </p>
+        <div class="hero-copy">
+          <p class="eyebrow">Kleinanzeigen KI Monitor</p>
+          <h1>Deals beobachten, bewerten und nur bei echten Schnaeppchen alarmieren.</h1>
+          <p class="lede">
+            Dieses V1-Grundsystem verwaltet Login, Suchauftraege, KI-Suchplaene und den Worker-Loop zentral.
+          </p>
+          <div class="hero-actions">
+            <span class="hero-pill">Live Suchauftraege</span>
+            <span class="hero-pill">Score-Logik</span>
+            <span class="hero-pill">Benachrichtigungen</span>
+          </div>
+        </div>
+        <aside class="hero-aside">
+          <div class="signal-card">
+            <p class="signal-label">Systemfokus</p>
+            <p class="signal-title">Deal Radar</p>
+            <p class="signal-copy">Von Freitext zu Suchplan, Trefferbewertung und Alert-Loop in einem Flow.</p>
+            <div class="signal-grid">
+              <div>
+                <span>Engine</span>
+                <strong>AI + Worker</strong>
+              </div>
+              <div>
+                <span>Modus</span>
+                <strong>V1 Control</strong>
+              </div>
+            </div>
+          </div>
+        </aside>
       </section>
 
       <section class="panel" id="login-panel">
@@ -33,6 +62,29 @@
       </section>
 
       <section class="panel hidden" id="app-panel">
+        <section class="summary-strip" id="summary-strip">
+          <article class="metric-card">
+            <span class="metric-label">Aktive Suchjobs</span>
+            <strong class="metric-value" id="metric-active">0</strong>
+            <span class="metric-note">laufende Beobachtungen</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Snoozed</span>
+            <strong class="metric-value" id="metric-snoozed">0</strong>
+            <span class="metric-note">temporär pausiert</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Alerts</span>
+            <strong class="metric-value" id="metric-notifications">0</strong>
+            <span class="metric-note">versendete Benachrichtigungen</span>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Worker</span>
+            <strong class="metric-value metric-value-text" id="metric-worker">n/a</strong>
+            <span class="metric-note">letzte Auswertung</span>
+          </article>
+        </section>
+
         <div class="toolbar">
           <div>
             <h2>Suchauftraege</h2>
